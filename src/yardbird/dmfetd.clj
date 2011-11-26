@@ -1,6 +1,8 @@
 (ns yardbird.dmfetd
+  (:use [yardbird.util :only [midi-note-to-pitch]])
   (:require [clojure.string :as string]
-            [clojure.java.io :as jio]))
+            [clojure.java.io :as jio]
+            [overtone.music.pitch :as pitch]))
 
 ; Notes for Coltrane's "Giant Steps" solos
 ;http://scholar.lib.vt.edu/theses/public/etd-61098-131249/materials/dmfetd.pdf
@@ -19,23 +21,35 @@
       (read f))))
 
 ; the nasty code I used to massage the data from the paper
-(comment
-(defn process [in] (->> (string/split in #"\n\n")
-  (map #(re-find #"(GS\d)\* (.+)\n(?s)(.+)" %))
-  (map rest)
-  (mapcat (fn [[id changes notes]] 
-            (map-indexed 
-              (fn [i chorus]
-                [id i changes (->> (string/split chorus #"\s+")
-                              (map #(if (= "7" %) nil (keyword %)))
-                              vec)])
-              (string/split notes #"\n"))))
-  (reduce (fn [acc [id i changes chorus]]
-            (update-in acc [id i] #(concat (or % []) chorus))) {})))
- 
-(defn -main []
-  (let [raw (slurp (jio/resource "yardbird/dmfetd/raw.txt"))
-        processed (process raw)]
-    (doseq [[version data] processed]
-      (spit (str "resources/yardbird/dmfetd/" (.toLowerCase version)) 
-            (pr-str (reduce conj [] (map (comp vec data) (sort (keys data)))))))))) 
+
+; (defn process [in] (->> (string/split in #"\n\n")
+;   (map #(re-find #"(GS\d)\* (.+)\n(?s)(.+)" %))
+;   (map rest)
+;   (mapcat (fn [[id changes notes]] 
+;             (map-indexed 
+;               (fn [i chorus]
+;                 [id i changes (->> (string/split chorus #"\s+")
+;                               (map #(if (= "7" %) nil (keyword %)))
+;                               vec)])
+;               (string/split notes #"\n"))))
+;   (reduce (fn [acc [id i changes chorus]]
+;             (update-in acc [id i] #(concat (or % []) chorus))) {})))
+;  
+; (defn -main []
+;   (let [raw (slurp (jio/resource "yardbird/dmfetd/raw.txt"))
+;         processed (process raw)]
+;     (doseq [[version data] processed]
+;       (spit (str "resources/yardbird/dmfetd/" (.toLowerCase version)) 
+;             (pr-str (reduce conj [] (map (comp vec data) (sort (keys data))))))))) 
+;  (defn -main [& args]
+;    (doseq [id all-solos]
+;      (let [s (load-solo id)]
+;        (spit (str "resources/yardbird/dmfetd/" (name id))
+;                (pr-str (vec (for [c (load-solo id)]
+;                (->> c
+;                  (map pitch/note)
+;                  (map #(if % (+ % 24 -2)))
+;                  (map midi-note-to-pitch)
+;                  vec)))
+;          )))))
+; 

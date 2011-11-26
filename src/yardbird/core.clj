@@ -1,24 +1,18 @@
+;  Copyright (c) Dave Ray, 2011. All rights reserved.
+
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this 
+;   distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
+
 (ns yardbird.core
   (:use [overtone.core]
         [overtone.inst synth drum]
-        [yardbird.dmfetd]))
-
-(defn midi-note-to-pitch 
-  "Convert a midi number to pitch, e.g.
-  
-    (midi-note-to-pitch 60)
-    ;=> :C4
-  "
-  [n]
-  (if n
-    (let [p (REVERSE-NOTES (mod n 12))
-        off (dec (int (/ n 12)))]
-      (keyword (str (name p) off)))))
-
-(defn as-notes 
-  "Make a sequence of notes."
-  [n]
-  (if (number? n) [n] n))
+        [yardbird.dmfetd]
+        [yardbird.util]))
 
 (defn note-player 
   "Starting at time t, play sequence of notes dt apart with inst."
@@ -137,6 +131,7 @@
              (interleave (scale :C4 :major) 
                          (map (diatonic-transpose :C 2) (scale :C4 :major))))
 (stop)
+(note-player p (+ (now) 100) 100 (map note (first gs1)))
 (note-player p (+ (now) 100) 100 (map (absolute-transpose 12) (map note (second gs1))))
 (note-player beep (+ (now) 100) 100 
              (map cons 
