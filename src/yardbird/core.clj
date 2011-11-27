@@ -127,6 +127,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(comment 
 (boot-external-server)
 
 (use 'overtone.inst.piano)
@@ -134,18 +135,32 @@
   ([note] (p note 50))
   ([note vel] (piano note 1 (+ vel (rand-int 10)) 0.3 0.1 0.5)))
 
-(definst beep [note 60 vol 0.5]
+(definst beep [note 60 vol 0.35]
   (let [freq (midicps note)
         src (sin-osc freq)
         env (env-gen (perc ) :action FREE)]
     (* vol src env)))
 
-(def gs1 (load-solo :gs1))
+(def gs1 (mapcat #(map note %) (load-solo :gs1)))
 (def gs1-changes 
-  [:B4  :B4  :D4  :D4  :G4  :G4  :Bb4 :Bb4 :Eb4 :Eb4 :Eb4 :Eb4 :A4  :A4  :D4  :D4
-   :G4  :G4  :Bb4 :Bb4 :Eb4 :Eb4 :F#4 :F#4 :B4  :B4  :B4  :B4  :F4  :F4  :Bb4 :Bb4
-   :Eb4 :Eb4 :Eb4 :Eb4 :A4  :A4  :D4  :D4  :G4  :G4  :G4  :G4  :C#4 :C#4 :F#4 :F#4
-   :B4  :B4  :B4  :B4  :F4  :F4  :Bb4 :Bb4 :Eb4 :Eb4 :Eb4 :Eb4 :C#4 :C#4 :F#4 :F#4])
+  [:B4  :D4  :G4  :Bb4 :Eb4 :Eb4 :A4  :D4  
+   :G4  :Bb4 :Eb4 :F#4 :B4  :B4  :F4  :Bb4 
+   :Eb4 :Eb4 :A4  :D4  :G4  :G4  :C#4 :F#4 
+   :B4  :B4  :F4  :Bb4 :Eb4 :Eb4 :C#4 :F#4])
+
+(def gs1-bass-line
+  (let [roots (->> gs1-changes
+                (map note)
+                (map (absolute-transpose -12)))
+        fifths (map (absolute-transpose 7) roots)
+        line   (interleave roots fifths)]
+    (cycle (stretch 2 line)))) ; stretch to match solo eighth notes
+
+((note-player :dt 100) 
+   { :inst p    :notes (map (juxt identity (absolute-transpose 7)) gs1)}
+   { :inst beep :notes gs1-bass-line })
+
+(stop)
 
 (def rrryb (cycle (map note [:C4 nil nil :C4 nil nil :C4 nil nil :D4 :E4 nil
             :E4 nil :D4 :E4 nil :F4 :G4 nil nil nil nil nil
@@ -210,13 +225,6 @@
 
 (stop)
 
-(def gs1-bass-line
-  (let [roots (map (comp (absolute-transpose -12) note first) (partition 2 gs1-changes))]
-    (cycle (stretch 2 (interleave
-                 roots
-                 (map (absolute-transpose 7) roots))))))
-(pl (map note (apply concat gs1))
-    {:inst beep :notes gs1-bass-line })
 
 (note-player p (+ (now) 100) 100 (map note (first gs1)))
 (note-player p (+ (now) 100) 100 (map (absolute-transpose 12) (map note (second gs1))))
@@ -224,4 +232,4 @@
   (pl (interleave (map (absolute-transpose 12) notes)
       (map (absolute-transpose 19) notes))
       (stretch 2 (map (absolute-transpose 26) notes)))) 
-
+)
