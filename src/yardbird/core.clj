@@ -81,6 +81,27 @@
      (diatonic-transpose key off) 
      (diatonic-transpose key (- off)))))
 
+(defn absolute-invert 
+  ([]
+   (let [helper (atom nil)]
+     (fn [n]
+       (when n
+         (swap! helper #(if-not % (absolute-invert n) %)) 
+         (@helper n)))))
+  ([pivot]
+    (fn [n]
+      (if n
+        (- pivot (- n pivot))))))
+
+(defn stretch 
+  "Given a sequence of notes, returns a lazy 'stretched' version of the sequence 
+  by inserting (- s 1) nils between each note."
+  [s notes]
+  (let [filler (repeat (dec s) nil)] 
+    (mapcat
+      #(cons % filler)
+      notes)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -106,10 +127,19 @@
                       :D4 :D4 :D4 nil :E4 :G4 :G4 nil
                       :E4 :D4 :C4 :D4 :E4 :E4 :E4 :D4 
                       :D4 :E4 :D4 :C4 nil]))
+(def ceotk (cycle (map note [:D5 :E5 :C5 :C4 :G4 nil nil nil])))
+(defn pl [xs] (note-player p (+ (now) 100) 300 xs))
+(pl (take 24 ceotk))
+(pl (take 24 
+          (map vector
+               (map (absolute-invert) ceotk)
+               (map (diatonic-transpose :C -2) ceotk))))
+(pl (take 24 (map vector (concat (repeat 3 nil) (drop 8 ceotk)) ceotk)))
+(pl (take 24 (interleave (map (diatonic-transpose :C 7) ceotk) ceotk)))
+(pl (take 24 (map (juxt (diatonic-transpose :C -2) (absolute-transpose 24)) ceotk)))
+(pl (map (one-of (side-slip 1) identity) mhall))
 
-(note-player beep (+ (now) 100) 200 (map (one-of (side-slip 1) identity) mhall))
-
-(note-player p (+ (now) 100) 200 (interleave mhall (map (diatonic-transpose :C 2) mhall)))
+(pl (interleave mhall (map (diatonic-transpose :C -5) mhall)))
 
 (note-player p (+ (now) 100) 200 (take 64 rrryb))
 
