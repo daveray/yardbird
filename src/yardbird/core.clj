@@ -34,15 +34,18 @@
   "
   [& {:keys [inst dt wait] :or {dt 500 wait 100}}]
   (let [player (fn play [t note-seqs]
-                (when (some identity note-seqs)
-                  (let [next-t (+ t dt)
-                        next-notes (map first note-seqs)]
-                    (doseq [n (mapcat as-notes next-notes)] 
-                      (when n 
-                        (at t (inst n))))
-                    (apply-at next-t play [next-t (map next note-seqs)]))))]
+                (when (some :notes note-seqs)
+                  (let [next-t (+ t dt)]
+                    (doseq [note-seq note-seqs]
+                      (let [i (or (:inst note-seq) inst)]
+                        (doseq [n (as-notes (first (:notes note-seq)))]
+                          (when n
+                            (at t (i n))))))
+                    (apply-at next-t play [next-t (map #(update-in % [:notes] next) note-seqs)]))))]
     (fn [& note-seqs]
-      (player (+ wait (now)) note-seqs))))
+      (player (+ wait (now)) 
+              (map #(if-not (map? %) 
+                      (hash-map :notes %) %) note-seqs)))))
 
 (defn absolute-transpose 
   "Returns a function that transposes a note by off semi-tones"
@@ -138,6 +141,12 @@
     (* vol src env)))
 
 (def gs1 (load-solo :gs1))
+(def gs1-changes 
+  [:B4  :B4  :D4  :D4  :G4  :G4  :Bb4 :Bb4 :Eb4 :Eb4 :Eb4 :Eb4 :A4  :A4  :D4  :D4
+   :G4  :G4  :Bb4 :Bb4 :Eb4 :Eb4 :F#4 :F#4 :B4  :B4  :B4  :B4  :F4  :F4  :Bb4 :Bb4
+   :Eb4 :Eb4 :Eb4 :Eb4 :A4  :A4  :D4  :D4  :G4  :G4  :G4  :G4  :C#4 :C#4 :F#4 :F#4
+   :B4  :B4  :B4  :B4  :F4  :F4  :Bb4 :Bb4 :Eb4 :Eb4 :Eb4 :Eb4 :C#4 :C#4 :F#4 :F#4])
+
 (def rrryb (cycle (map note [:C4 nil nil :C4 nil nil :C4 nil nil :D4 :E4 nil
             :E4 nil :D4 :E4 nil :F4 :G4 nil nil nil nil nil
             :C5 :C5 :C5 :G4 :G4 :G4 :E4 :E4 :E4 :c4 :C4 :C4
@@ -147,8 +156,10 @@
                       :E4 :D4 :C4 :D4 :E4 :E4 :E4 :D4 
                       :D4 :E4 :D4 :C4 nil]))
 (def ceotk (cycle (map note [:D5 :E5 :C5 :C4 :G4 nil nil nil])))
-(def pl (note-player :inst p :dt 150))
-(pl (take 24 ceotk))
+(def pl (note-player :inst p :dt 100))
+(pl (stretch 2 (take 24 ceotk))
+    { :inst beep 
+      :notes (interleave (repeat nil) (map (absolute-transpose -12) ceotk))})
 (stop)
 (pl (map (absolute-transpose 12) ceotk)
     (take 32 (map (diatonic-transpose :C 2) ceotk))
@@ -198,6 +209,15 @@
     (stretch 2 (reverse (scale :C3 :major)) ))
 
 (stop)
+
+(def gs1-bass-line
+  (let [roots (map (comp (absolute-transpose -12) note first) (partition 2 gs1-changes))]
+    (cycle (stretch 2 (interleave
+                 roots
+                 (map (absolute-transpose 7) roots))))))
+(pl (map note (apply concat gs1))
+    {:inst beep :notes gs1-bass-line })
+
 (note-player p (+ (now) 100) 100 (map note (first gs1)))
 (note-player p (+ (now) 100) 100 (map (absolute-transpose 12) (map note (second gs1))))
 (let [notes (map note (first gs1))] 
