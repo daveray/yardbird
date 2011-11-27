@@ -14,16 +14,35 @@
         [yardbird.dmfetd]
         [yardbird.util]))
 
-(defn note-player 
-  "Starting at time t, play sequence of notes dt apart with inst."
-  [inst t dt notes]
-  (when notes
-    (let [next-t (+ t dt)
-          next-note (first notes)]
-      (doseq [n (as-notes next-note)] 
-        (when n 
-          (at t (inst n))))
-      (apply-at next-t #'note-player [inst next-t dt (next notes)]))))
+(defn note-player
+  "Returns a function which plays one or more sequences of notes with the given
+  instrument. Keyword args are:
+  
+    :inst The default instrument function. Must take a single midi note value.
+    :dt   Time, in milliseconds between each note. Defaults to 500ms, i.e.
+          quarter notes at 120bpm.
+    :wait The delay, in milliseconds, before the notes start playing. Defaults
+          to 100 which is a nice round number.
+ 
+  Example:
+
+    ; First define the player
+    (def player (note-player :inst my-piano :dt 100))
+
+    ; Now use it to play some note sequences in parallel
+    (player [60 61 62] [64 65 66])
+  "
+  [& {:keys [inst dt wait] :or {dt 500 wait 100}}]
+  (let [player (fn play [t note-seqs]
+                (when (some identity note-seqs)
+                  (let [next-t (+ t dt)
+                        next-notes (map first note-seqs)]
+                    (doseq [n (mapcat as-notes next-notes)] 
+                      (when n 
+                        (at t (inst n))))
+                    (apply-at next-t play [next-t (map next note-seqs)]))))]
+    (fn [& note-seqs]
+      (player (+ wait (now)) note-seqs))))
 
 (defn absolute-transpose 
   "Returns a function that transposes a note by off semi-tones"
@@ -128,46 +147,61 @@
                       :E4 :D4 :C4 :D4 :E4 :E4 :E4 :D4 
                       :D4 :E4 :D4 :C4 nil]))
 (def ceotk (cycle (map note [:D5 :E5 :C5 :C4 :G4 nil nil nil])))
-(defn pl [xs] (note-player p (+ (now) 100) 300 xs))
+(def pl (note-player :inst p :dt 150))
 (pl (take 24 ceotk))
-(pl (take 24 
-          (map vector
-               (map (absolute-invert) ceotk)
-               (map (diatonic-transpose :C -2) ceotk))))
-(pl (take 24 (map vector (concat (repeat 3 nil) (drop 8 ceotk)) ceotk)))
+(stop)
+(pl (map (absolute-transpose 12) ceotk)
+    (take 32 (map (diatonic-transpose :C 2) ceotk))
+    (take 32 (map (absolute-transpose -24) (stretch 3 ceotk))))
+
+; As 2 parallel seqs
+(pl (map (absolute-invert) ceotk)
+    (map (diatonic-transpose :C -2) ceotk))
+; or one seq of 2-elemet vectors ...
+(pl (map (juxt (absolute-invert) 
+               (diatonic-transpose :C -2)) ceotk))
+
 (pl (take 24 (interleave (map (diatonic-transpose :C 7) ceotk) ceotk)))
-(pl (take 24 (map (juxt (diatonic-transpose :C -2) (absolute-transpose 24)) ceotk)))
+(pl (map (diatonic-transpose :C -2) ceotk)
+    (map (absolute-transpose 24) ceotk))
 (pl (map (one-of (side-slip 1) identity) mhall))
 
-(pl (interleave mhall (map (diatonic-transpose :C -5) mhall)))
+(pl (interleave mhall (map (diatonic-transpose :C 2) mhall)))
 
-(note-player p (+ (now) 100) 200 (take 64 rrryb))
+(pl (take 64 rrryb))
+(apply pl (map #(map note %) gs1))
+(pl (map note (first gs1))
+    (map (comp (absolute-transpose 24) note) (second gs1)))
 
-(note-player p (+ (now) 100) 150 
-             (let [no-nils (take 32 (filter identity (map note (first gs1))))]
-               (interleave
-                    (invert no-nils)
-                    no-nils)))
+(stop)
 
-(note-player beep (+ (now) 100) 200 (take 48
-                                       (map (juxt identity (diatonic-transpose :C 2)(diatonic-transpose :C 4)) rrryb)))
+; as 3 parallel seqs
+(pl
+  rrryb                                   ; root
+  (map (diatonic-transpose :C 2) rrryb)   ; third
+  (map (diatonic-transpose :C 4) rrryb))  ; fifth
+; or a single seq of vectors ...
+(pl (map (juxt 
+           identity                   ; root
+           (diatonic-transpose :C 2)  ; third
+           (diatonic-transpose :C 4)) ; fifth
+         rrryb) )
 
-(note-player p (+ (now) 100) 200 (take 48 (map vector (drop 12 rrryb) rrryb)))
+(stop)
+(pl 
+  (interleave rrryb 
+              (map (diatonic-transpose :C 2) rrryb)
+              (map (diatonic-transpose :C 4) rrryb)))
 
-(note-player p (+ (now) 100) 100 
-             (take 128 (interleave rrryb (map (diatonic-transpose :C 2) rrryb))))
+(pl (interleave (scale :C4 :major) 
+                (map (diatonic-transpose :C 2) (scale :C4 :major)))
+    (stretch 2 (reverse (scale :C3 :major)) ))
 
-(note-player p (+ (now) 100) 300
-             (interleave (scale :C4 :major) 
-                         (map (diatonic-transpose :C 2) (scale :C4 :major))))
 (stop)
 (note-player p (+ (now) 100) 100 (map note (first gs1)))
 (note-player p (+ (now) 100) 100 (map (absolute-transpose 12) (map note (second gs1))))
-(note-player beep (+ (now) 100) 100 
-             (map cons 
-                  (->> (map note (second gs1))
-                    (map (absolute-transpose 12)))
-                  (->> (map note (first gs1)) 
-                    (map (absolute-transpose 24))
-                    (map (juxt identity (absolute-transpose 7) (absolute-transpose 14)))))) 
+(let [notes (map note (first gs1))] 
+  (pl (interleave (map (absolute-transpose 12) notes)
+      (map (absolute-transpose 19) notes))
+      (stretch 2 (map (absolute-transpose 26) notes)))) 
 
