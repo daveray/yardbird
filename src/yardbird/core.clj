@@ -23,6 +23,8 @@
           quarter notes at 120bpm.
     :wait The delay, in milliseconds, before the notes start playing. Defaults
           to 100 which is a nice round number.
+    :stop? If true, calls (stop) each time the the player function is called.
+           This is a convenience for live-coding. Defaults to true.
  
   Example:
 
@@ -32,7 +34,7 @@
     ; Now use it to play some note sequences in parallel
     (player [60 61 62] [64 65 66])
   "
-  [& {:keys [inst dt wait] :or {dt 500 wait 100}}]
+  [& {:keys [inst dt wait stop?] :or {dt 500 wait 100 stop? true}}]
   (let [player (fn play [t note-seqs]
                 (when (some :notes note-seqs)
                   (let [next-t (+ t dt)]
@@ -43,6 +45,7 @@
                             (at t (i n))))))
                     (apply-at next-t play [next-t (map #(update-in % [:notes] next) note-seqs)]))))]
     (fn [& note-seqs]
+      (when stop? (stop))
       (player (+ wait (now)) 
               (map #(if-not (map? %) 
                       (hash-map :notes %) %) note-seqs)))))
