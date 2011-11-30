@@ -56,29 +56,53 @@
   (fn [n]
     (if n (+ n off))))
 
+(defn- up-diatonic-transpose-table [scale]
+  ; First fill a vector with offsets for each scale tone, i.e. a[i]
+  ; is the delta between interval i and i+1.
+  (let [a (first (reduce (fn [[acc i] d]
+                            [(assoc acc i d) (+ i d)])
+                         [(vec (repeat 12 0)) 0]
+                         scale))
+        
+        ; Now fill in the zeros with the delta up to the next scale
+        ; tone.
+        b (first (reduce (fn [[acc n] i] 
+                    (if (zero? (acc i)) 
+                      [(assoc acc i (- n i)) n] [acc i])) 
+                  [a (count a)] 
+                  (range (dec (count a)) -1 -1)))]
+    b))
+
+(defn- down-diatonic-transpose-table [scale]
+  (let [a (reverse (map - (up-diatonic-transpose-table (reverse scale))))]
+    (vec (concat (drop 11 a) (take 11 a)))))
+
 (defn diatonic-transpose 
   "Returns a function that transposes a note diatonically in the given
   key by off steps. For instance:
   
-    ((diatonic-transpose :C 60) 1)
+    ((diatonic-transpose :C :major 1) 60)
     ;=> 62   
     ; i.e. C goes up one whole step to D
-    ((diatonic-transpose :C 60) -1)
+    ((diatonic-transpose :C :major -1) 60)
     ;=> 59  
     ; i.e. C goes down one half-step to B
 
   Non-diatonic notes go to their nearest diatonic neighbor and then
   shift from there.
+
+  See:
+    (overtone.music.pitch/resolve-scale)
   "
-  [key off]
-             ;0   1  2  3  4  5  6  7  8  9  10  11
-  (let [up   [2   1  2  1  1  2  1  2  1  2  1   1]
-        down [-1 -1 -2 -1 -1 -2 -1 -2 -1 -2 -1  -2]
+  [key scale off]
+  (let [scale   (resolve-scale scale)
+        up      (up-diatonic-transpose-table scale)
+        down    (down-diatonic-transpose-table scale)
         key-off (NOTES key)
-        adjust (fn [table note n]
-                 (if (zero? n)
-                   note
-                   (recur table (+ note (table (mod note 12))) (dec n))))] 
+        adjust  (fn [table note n]
+                  (if (zero? n)
+                    note
+                    (recur table (+ note (table (mod note 12))) (dec n))))] 
     (fn [n]
       (if n
         (+ key-off 
@@ -99,12 +123,16 @@
 
 (defn diatonic-side-slip
   "Returns a function that randomly shifts a note diatonically in key
-  up or down by offset."
-  ([key] (diatonic-side-slip key 1))
-  ([key off] 
+  up or down by offset.
+  
+  See:
+    (yardbird.core/diatonic-transpose)
+  "
+  ([key scale] (diatonic-side-slip key scale 1))
+  ([key scale off] 
    (one-of 
-     (diatonic-transpose key off) 
-     (diatonic-transpose key (- off)))))
+     (diatonic-transpose key scale off) 
+     (diatonic-transpose key scale (- off)))))
 
 (defn absolute-invert 
   ([]
@@ -180,22 +208,22 @@
       :notes (interleave (repeat nil) (map (absolute-transpose -12) ceotk))})
 (stop)
 (pl (map (absolute-transpose 12) ceotk)
-    (take 32 (map (diatonic-transpose :C 2) ceotk))
+    (take 32 (map (diatonic-transpose :C :major 2) ceotk))
     (take 32 (map (absolute-transpose -24) (stretch 3 ceotk))))
 
 ; As 2 parallel seqs
 (pl (map (absolute-invert) ceotk)
-    (map (diatonic-transpose :C -2) ceotk))
+    (map (diatonic-transpose :C :major -2) ceotk))
 ; or one seq of 2-elemet vectors ...
 (pl (map (juxt (absolute-invert) 
-               (diatonic-transpose :C -2)) ceotk))
+               (diatonic-transpose :C :major -2)) ceotk))
 
-(pl (take 24 (interleave (map (diatonic-transpose :C 7) ceotk) ceotk)))
-(pl (map (diatonic-transpose :C -2) ceotk)
+(pl (take 24 (interleave (map (diatonic-transpose :C :major 7) ceotk) ceotk)))
+(pl (map (diatonic-transpose :C :major -2) ceotk)
     (map (absolute-transpose 24) ceotk))
 (pl (map (one-of (side-slip 1) identity) mhall))
 
-(pl (interleave mhall (map (diatonic-transpose :C 2) mhall)))
+(pl (interleave mhall (map (diatonic-transpose :C :major 2) mhall)))
 
 (pl (take 64 rrryb))
 (apply pl (map #(map note %) gs1))
@@ -207,23 +235,23 @@
 ; as 3 parallel seqs
 (pl
   rrryb                                   ; root
-  (map (diatonic-transpose :C 2) rrryb)   ; third
-  (map (diatonic-transpose :C 4) rrryb))  ; fifth
+  (map (diatonic-transpose :C :major 2) rrryb)   ; third
+  (map (diatonic-transpose :C :major 4) rrryb))  ; fifth
 ; or a single seq of vectors ...
 (pl (map (juxt 
            identity                   ; root
-           (diatonic-transpose :C 2)  ; third
-           (diatonic-transpose :C 4)) ; fifth
+           (diatonic-transpose :C :major 2)  ; third
+           (diatonic-transpose :C :major 4)) ; fifth
          rrryb) )
 
 (stop)
 (pl 
   (interleave rrryb 
-              (map (diatonic-transpose :C 2) rrryb)
-              (map (diatonic-transpose :C 4) rrryb)))
+              (map (diatonic-transpose :C :major 2) rrryb)
+              (map (diatonic-transpose :C :major 4) rrryb)))
 
 (pl (interleave (scale :C4 :major) 
-                (map (diatonic-transpose :C 2) (scale :C4 :major)))
+                (map (diatonic-transpose :C :major 2) (scale :C4 :major)))
     (stretch 2 (reverse (scale :C3 :major)) ))
 
 (stop)
