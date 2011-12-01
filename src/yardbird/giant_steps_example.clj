@@ -11,7 +11,7 @@
 (ns yardbird.giant-steps-example
   (:use [overtone.core]
         [overtone.inst synth drum piano]
-        [yardbird.dmfetd]
+        [yardbird.giant-steps]
         [yardbird.core]))
 
 (boot-external-server)

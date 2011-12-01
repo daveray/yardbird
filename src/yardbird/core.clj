@@ -11,7 +11,6 @@
 (ns yardbird.core
   (:use [overtone.core]
         [overtone.inst synth drum]
-        [yardbird.dmfetd]
         [yardbird.util]))
 
 (defn note-player
