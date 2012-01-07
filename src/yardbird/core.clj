@@ -19,6 +19,11 @@
       (+ beat (- beats-per-measure m))
       beat)))
 
+(defn split-opts [[f & more :as args]]
+  (if (map? f)
+    [f more]
+    [{} args]))
+
 (defn note-player
   "Returns a function which plays one or more sequences of notes with the given
   instrument. Keyword args are:
@@ -28,15 +33,26 @@
            is created and used.
     :stop? If true, calls (stop) each time the the player function is called.
            This is a convenience for live-coding. Defaults to true.
-    :ts    Time signature
- 
-  Example:
+    :ts    Time signature, e.g. [6 8], [4 4]. If the player is called multiple
+           times, they'll all start on the first beat of the measure.
 
-    ; First define the player
-    (def player (note-player :inst my-piano :dt 100))
+  The returned function takes an optional option map followed by one or more
+  note seqs. The option map has the following options:
+    
+    :on The beat to start on. Defaults to 0.
+
+  Example:
+    
+    ; Define a metronome
+    (def m (metronome 200))
+
+    ; Define the player
+    (def play (note-player :inst my-piano :metro m))
 
     ; Now use it to play some note sequences in parallel
-    (player [60 61 62] [64 65 66])
+    (play [60 61 62] [64 65 66])
+    ; or to start on the third beat of the measure ...
+    (play {:on 3} [60 61 62] [64 65 66])
   "
   [& {:keys [inst metro stop? ts] 
       :or {metro (metronome 120) 
@@ -55,11 +71,12 @@
                       (metro (inc beat)) 
                       play 
                       [(inc beat) (map #(update-in % [:notes] next) note-seqs)]))))]
-    (fn [{:keys [on] :or {on 0} :as opts} & note-seqs]
-      (when stop? (stop))
-      (player (+ (next-measure (metro) beats) on) 
-              (map #(if-not (map? %) 
-                      (hash-map :notes %) %) note-seqs)))))
+    (fn [& args]
+      (let [[{:keys [on] :or {on 0} :as opts} note-seqs] (split-opts args)] 
+        (when stop? (stop))
+        (player (+ (next-measure (metro) beats) on) 
+                (map #(if-not (map? %) 
+                        (hash-map :notes %) %) note-seqs))))))
 
 (defn absolute-transpose 
   "Returns a function that transposes a note by off semi-tones"

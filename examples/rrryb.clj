@@ -34,8 +34,8 @@
 
 ; Hit this to start new rounds. The :ts above will ensure they wait
 ; and start at the beginning of the measure
-(p {:on 0} rrryb)
-(p {:on 0} (map (diatonic-transpose :C :major 6) rrryb))
+(p rrryb)
+(p {:on 4} (map (diatonic-transpose :C :major 6) rrryb))
 
 ; Some controls
 (m :bpm (* (m :bpm) 2))
