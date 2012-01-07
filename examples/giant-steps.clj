@@ -8,6 +8,8 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
+; Rendition of Coltrane's Giant Steps solo
+; http://darevay.com/overtone/giant-steps.mp3
 (do 
   (use '[overtone.core]
        '[overtone.inst synth drum piano])
