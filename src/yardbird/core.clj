@@ -13,6 +13,12 @@
         [overtone.inst synth drum]
         [yardbird.util]))
 
+(defn next-measure [beat beats-per-measure]
+  (let [m (mod beat beats-per-measure)]
+    (if (> m 0)
+      (+ beat (- beats-per-measure m))
+      beat)))
+
 (defn note-player
   "Returns a function which plays one or more sequences of notes with the given
   instrument. Keyword args are:
@@ -22,6 +28,7 @@
            is created and used.
     :stop? If true, calls (stop) each time the the player function is called.
            This is a convenience for live-coding. Defaults to true.
+    :ts    Time signature
  
   Example:
 
@@ -31,9 +38,12 @@
     ; Now use it to play some note sequences in parallel
     (player [60 61 62] [64 65 66])
   "
-  [& {:keys [inst metro stop?] 
-      :or {metro (metronome 120) stop? true}}]
-  (let [player (fn play [beat note-seqs]
+  [& {:keys [inst metro stop? ts] 
+      :or {metro (metronome 120) 
+           stop? true
+           ts [4 4]}}]
+  (let [[beats _] ts
+        player (fn play [beat note-seqs]
                 (when (some :notes note-seqs)
                   (let [t (metro beat)]
                     (doseq [note-seq note-seqs]
@@ -45,9 +55,9 @@
                       (metro (inc beat)) 
                       play 
                       [(inc beat) (map #(update-in % [:notes] next) note-seqs)]))))]
-    (fn [& note-seqs]
+    (fn [{:keys [on] :or {on 0} :as opts} & note-seqs]
       (when stop? (stop))
-      (player (metro) 
+      (player (+ (next-measure (metro) beats) on) 
               (map #(if-not (map? %) 
                       (hash-map :notes %) %) note-seqs)))))
 
@@ -194,10 +204,6 @@
 
 (stop)
 
-(def rrryb (cycle (map note [:C4 nil nil :C4 nil nil :C4 nil nil :D4 :E4 nil
-            :E4 nil :D4 :E4 nil :F4 :G4 nil nil nil nil nil
-            :C5 :C5 :C5 :G4 :G4 :G4 :E4 :E4 :E4 :c4 :C4 :C4
-            :G4 nil :F4 :E4 nil :D4 :C4 nil nil nil nil nil])))
 (def mhall (map note [:E4 :D4 :C4 :D4 :E4 :E4 :E4 nil
                       :D4 :D4 :D4 nil :E4 :G4 :G4 nil
                       :E4 :D4 :C4 :D4 :E4 :E4 :E4 :D4 
@@ -225,37 +231,6 @@
 (pl (map (one-of (side-slip 1) identity) mhall))
 
 (pl (interleave mhall (map (diatonic-transpose :C :major 2) mhall)))
-
-(pl (take 64 rrryb))
-(apply pl (map #(map note %) gs1))
-(pl (map note (first gs1))
-    (map (comp (absolute-transpose 24) note) (second gs1)))
-
-(stop)
-
-; as 3 parallel seqs
-(pl
-  rrryb                                   ; root
-  (map (diatonic-transpose :C :major 2) rrryb)   ; third
-  (map (diatonic-transpose :C :major 4) rrryb))  ; fifth
-; or a single seq of vectors ...
-(pl (map (juxt 
-           identity                   ; root
-           (diatonic-transpose :C :major 2)  ; third
-           (diatonic-transpose :C :major 4)) ; fifth
-         rrryb) )
-
-(stop)
-(pl 
-  (interleave rrryb 
-              (map (diatonic-transpose :C :major 2) rrryb)
-              (map (diatonic-transpose :C :major 4) rrryb)))
-
-(pl (interleave (scale :C4 :major) 
-                (map (diatonic-transpose :C :major 2) (scale :C4 :major)))
-    (stretch 2 (reverse (scale :C3 :major)) ))
-
-(stop)
 
 
 (note-player p (+ (now) 100) 100 (map note (first gs1)))
