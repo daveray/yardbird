@@ -225,7 +225,6 @@
                       :D4 :D4 :D4 nil :E4 :G4 :G4 nil
                       :E4 :D4 :C4 :D4 :E4 :E4 :E4 :D4 
                       :D4 :E4 :D4 :C4 nil]))
-(def ceotk (cycle (map note [:D5 :E5 :C5 :C4 :G4 nil nil nil])))
 (def pl (note-player :inst p :dt 100))
 (pl (stretch 2 (take 24 ceotk))
     { :inst beep 
