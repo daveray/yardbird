@@ -7,9 +7,10 @@
 ;   By using this software in any fashion, you are agreeing to be bound by
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
-(use 'overtone.core)
-(boot-external-server)
-(use 'yardbird.core)
+(do 
+  (use 'overtone.core)
+  (boot-external-server)
+  (use 'yardbird.core :reload))
 
 ; ubiquitous beep
 (definst beep [note 60 vol 0.4]
@@ -24,8 +25,10 @@
 ; it's hard to go wrong with a pentatonic
 (defn trans [off] (diatonic-transpose :D :minor-pentatonic off))
 
-((note-player :inst beep :dt 155) 
-   (->> (range 7) ; some numbers to drive things
+(def m (metronome 250))
+(def p (note-player :inst beep :metro m))
+
+(p (->> (range 7) ; some numbers to drive things
      cycle
      (map #(map (one-of 
                   (fn [_])                  ; no note
@@ -35,4 +38,10 @@
                   (absolute-transpose 24))  ; transpose way up
                 notes))))
 
+; Some controls
+(m :bpm (* (m :bpm) 2))
+(m :bpm (/ (m :bpm) 2))
+(m :bpm (+ (m :bpm) 20))
+(m :bpm (- (m :bpm) 20))
 (stop)
+

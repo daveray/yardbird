@@ -18,10 +18,8 @@
   instrument. Keyword args are:
   
     :inst The default instrument function. Must take a single midi note value.
-    :dt   Time, in milliseconds between each note. Defaults to 500ms, i.e.
-          quarter notes at 120bpm.
-    :wait The delay, in milliseconds, before the notes start playing. Defaults
-          to 100 which is a nice round number.
+    :metro The metronome to use. If omitted, an anonymous 120bmp metronome
+           is created and used.
     :stop? If true, calls (stop) each time the the player function is called.
            This is a convenience for live-coding. Defaults to true.
  
@@ -33,19 +31,23 @@
     ; Now use it to play some note sequences in parallel
     (player [60 61 62] [64 65 66])
   "
-  [& {:keys [inst dt wait stop?] :or {dt 500 wait 100 stop? true}}]
-  (let [player (fn play [t note-seqs]
+  [& {:keys [inst metro stop?] 
+      :or {metro (metronome 120) stop? true}}]
+  (let [player (fn play [beat note-seqs]
                 (when (some :notes note-seqs)
-                  (let [next-t (+ t dt)]
+                  (let [t (metro beat)]
                     (doseq [note-seq note-seqs]
                       (let [i (or (:inst note-seq) inst)]
                         (doseq [n (as-notes (first (:notes note-seq)))]
                           (when n
                             (at t (i n))))))
-                    (apply-at next-t play [next-t (map #(update-in % [:notes] next) note-seqs)]))))]
+                    (apply-at 
+                      (metro (inc beat)) 
+                      play 
+                      [(inc beat) (map #(update-in % [:notes] next) note-seqs)]))))]
     (fn [& note-seqs]
       (when stop? (stop))
-      (player (+ wait (now)) 
+      (player (metro) 
               (map #(if-not (map? %) 
                       (hash-map :notes %) %) note-seqs)))))
 

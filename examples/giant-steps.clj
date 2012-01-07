@@ -8,16 +8,15 @@
 ;   the terms of this license.
 ;   You must not remove this notice, or any other, from this software.
 
-(ns yardbird.giant-steps-example
-  (:use [overtone.core]
-        [overtone.inst synth drum piano]
-        [yardbird.giant-steps]
-        [yardbird.core]))
-
-(boot-external-server)
+(do 
+  (use '[overtone.core]
+       '[overtone.inst synth drum piano])
+  (boot-external-server)
+  (use '[yardbird.core]
+       '[yardbird.giant-steps])) 
 
 ; Make a bass-like instrument (aka beep)
-(definst my-bass [note 60 vol 0.35]
+(definst my-bass [note 60 vol 0.7]
   (let [freq (midicps note)
         src (sin-osc freq)
         env (env-gen (perc ) :action FREE)]
@@ -25,7 +24,7 @@
 
 ; Use MdaPiano ugen
 (defn my-piano 
-  ([note] (my-piano note 50))
+  ([note] (my-piano note 80))
   ([note vel] (piano note 1 (+ vel (rand-int 10)) 0.3 0.1 0.5)))
 
 ; Grab all the notes in the original Giant Steps solo
@@ -47,12 +46,18 @@
         line   (interleave roots fifths)]         ; mix roots and fifths
     (cycle (stretch 2 line)))) ; stretch to match solo eighth notes
 
-((note-player :dt 100) 
+(def m (metronome 600))
+((note-player :metro m) 
    ; Play the solo with the piano, harmonized in absolute fifths
    { :inst my-piano :notes (map (juxt identity (absolute-transpose 7)) gs1)}
 
    ; Play the bass-line
    { :inst my-bass  :notes gs1-bass-line })
 
+; Some controls
+(m :bpm (* (m :bpm) 2))
+(m :bpm (/ (m :bpm) 2))
+(m :bpm (+ (m :bpm) 20))
+(m :bpm (- (m :bpm) 20))
 (stop)
 
